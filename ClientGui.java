@@ -224,3 +224,167 @@ public class ClientGui extends Thread{
       jfr.remove(jtextInputChatSP);
       jfr.remove(jsbtndeco);
       jfr.remove(jsbtnSendFile);
+      jfr.revalidate();
+      jfr.repaint();
+      read.interrupt();
+      jtextListUsers.setText(null);
+      jtextFilDiscu.setBackground(Color.LIGHT_GRAY);
+      jtextListUsers.setBackground(Color.LIGHT_GRAY);
+      appendToPane(jtextFilDiscu, "<span>Connection closed.</span>");
+      output.close();
+    });
+
+  }
+
+  // check if all field are not empty
+  public static class TextListener implements DocumentListener{
+    JTextField jtf1;
+    JTextField jtf2;
+    JTextField jtf3;
+    JButton jcbtn;
+
+    public TextListener(JTextField jtf1, JTextField jtf2, JTextField jtf3, JButton jcbtn){
+      this.jtf1 = jtf1;
+      this.jtf2 = jtf2;
+      this.jtf3 = jtf3;
+      this.jcbtn = jcbtn;
+    }
+
+    public void changedUpdate(DocumentEvent e) {}
+
+    public void removeUpdate(DocumentEvent e) {
+      jcbtn.setEnabled(!jtf1.getText().trim().equals("") &&
+              !jtf2.getText().trim().equals("") &&
+              !jtf3.getText().trim().equals(""));
+    }
+    public void insertUpdate(DocumentEvent e) {
+      jcbtn.setEnabled(!jtf1.getText().trim().equals("") &&
+              !jtf2.getText().trim().equals("") &&
+              !jtf3.getText().trim().equals(""));
+    }
+
+  }
+
+  // mengirim pesan
+  public void sendMessage() {
+    try {
+      String message = jtextInputChat.getText().trim();
+      if (message.equals("")) {
+        return;
+      }
+      this.oldMsg = message;
+      output.println(message);
+      jtextInputChat.requestFocus();
+      jtextInputChat.setText(null);
+    } catch (Exception ex) {
+      JOptionPane.showMessageDialog(null, ex.getMessage());
+      System.exit(0);
+    }
+  }
+  
+private void sendFile() {
+    int result = fileChooser.showOpenDialog(null);
+    if (result == JFileChooser.APPROVE_OPTION) {
+        File selectedFile = fileChooser.getSelectedFile();
+        String imagePath = selectedFile.toURI().toString();
+        output.println("Sent a File: " + imagePath);
+        
+    }
+}
+
+  public static void main(String[] args) {
+    new ClientGui();
+  }
+
+  // read new incoming messages
+  class Read extends Thread {
+    public void run() {
+      String message;
+      while(!Thread.currentThread().isInterrupted()){
+        try {
+          message = input.readLine();
+          if(message != null){
+            if (message.charAt(0) == '[') {
+              message = message.substring(1, message.length()-1);
+              ArrayList<String> ListUser = new ArrayList<>(
+                      Arrays.asList(message.split(", "))
+              );
+              jtextListUsers.setText(null);
+              for (String user : ListUser) {
+                appendToPane(jtextListUsers, "@" + user);
+              }
+            }else{
+                appendToPane(jtextFilDiscu, message);
+                
+            }
+          }
+        }
+        catch (IOException ex) {
+          System.err.println("Failed to parse incoming message");
+        }
+      }
+    }
+    
+  }
+
+  // send html to pane
+  private void appendsToPane(JTextPane tp, String msg){
+    HTMLDocument doc = (HTMLDocument)tp.getDocument();
+    HTMLEditorKit editorKit = (HTMLEditorKit)tp.getEditorKit();
+    if(isImageFile(msg)){
+        System.out.println(msg);
+    }else{
+      try {
+        editorKit.insertHTML(doc, doc.getLength(), msg, 0, 0, null);
+        tp.setCaretPosition(doc.getLength());
+      } catch(Exception e){
+        e.printStackTrace();
+      }
+    }
+    
+  }
+  
+  private boolean isImageFile(String fileName) {
+        // You can add more image file extensions if needed
+        return fileName.toLowerCase().endsWith(".png</span>") ||
+               fileName.toLowerCase().endsWith(".jpg</span>") ||
+               fileName.toLowerCase().endsWith(".jpeg</span>") ||
+               fileName.toLowerCase().endsWith(".gif</span>") ||
+               fileName.toLowerCase().endsWith(".bmp</span>");
+    }
+  
+  private void appendToPane(JTextPane tp, String message) {
+    HTMLDocument doc = (HTMLDocument) tp.getDocument();
+    HTMLEditorKit editorKit = (HTMLEditorKit) tp.getEditorKit();
+
+    try {
+        if (isImageFile(message)) {
+            System.out.println(message);
+
+            // Define a regular expression to match the "nickname: " pattern and capture the file path
+            Pattern pattern = Pattern.compile("file:([^<]*)");
+
+            // Use a Matcher to find the pattern in the input
+            Matcher matcher = pattern.matcher(message);
+
+            // Check if the pattern is found
+            if (matcher.find()) {
+                // Extract and print the file path with 'file:' prefix
+                String filePath = matcher.group(0).trim();
+                System.out.println(filePath);
+                editorKit.insertHTML(doc, doc.getLength(), message, 0, 0, null);
+                editorKit.insertHTML(doc, doc.getLength(), "<img src='" + filePath + "' width='200' />", 0, 0, null);
+                tp.setCaretPosition(doc.getLength());
+            } else {
+                System.out.println("File path not found in the input.");
+            }
+        }else{
+            editorKit.insertHTML(doc, doc.getLength(), message, 0, 0, null);
+            tp.setCaretPosition(doc.getLength());
+        }
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+  }
+}
